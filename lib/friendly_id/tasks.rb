@@ -15,6 +15,32 @@ module FriendlyId
         end
       end
 
+      def make_slugs_faster(klass, options = {})
+        require_ar_extensions
+
+        klass = parse_class_name(klass)
+        validate_uses_slugs(klass)
+        options = {:limit => 100, :include => :slugs, :conditions => "slugs.id IS NULL"}.merge(options)
+        while records = klass.find(:all, options) do
+          break if records.size == 0
+          slugs = []
+          records.each do |r|
+            klass.update_all({:cached_slug => r.slug_text}, :id => r.id)
+            slug = r.slugs.build :name => r.slug_text
+            r.instance_eval do
+              if friendly_id_options[:scope]
+                scope = send(friendly_id_options[:scope])
+                slug.scope = scope.respond_to?(:to_param) ? scope.to_param : scope.to_s
+              end
+            end
+            slug.send :set_sequence
+            slugs << slug
+            yield(r) if block_given?
+          end
+          Slug.import slugs, :validate => false
+        end
+      end
+
       def delete_slugs_for(klass)
         klass = parse_class_name(klass)
         validate_uses_slugs(klass)
@@ -49,6 +75,15 @@ module FriendlyId
 
       def validate_uses_slugs(klass)
         raise "Class '%s' doesn't use slugs" % klass.to_s unless klass.friendly_id_options[:use_slug]
+      end
+
+      def require_ar_extensions
+        begin
+          require 'ar-extensions/adapters/mysql'
+          require 'ar-extensions/import/mysql'
+        rescue LoadError
+          puts "Please install ar-extensions: gem install ar-etensions"
+        end
       end
 
     end
