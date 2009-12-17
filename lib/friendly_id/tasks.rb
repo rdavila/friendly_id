@@ -16,8 +16,6 @@ module FriendlyId
       end
 
       def make_slugs_faster(klass, options = {})
-        require_ar_extensions
-
         klass = parse_class_name(klass)
         validate_uses_slugs(klass)
         options = {:limit => 100, :include => :slugs, :conditions => "slugs.id IS NULL"}.merge(options)
@@ -76,16 +74,6 @@ module FriendlyId
       def validate_uses_slugs(klass)
         raise "Class '%s' doesn't use slugs" % klass.to_s unless klass.friendly_id_options[:use_slug]
       end
-
-      def require_ar_extensions
-        begin
-          require 'ar-extensions/adapters/mysql'
-          require 'ar-extensions/import/mysql'
-        rescue LoadError
-          puts "Please install ar-extensions: gem install ar-etensions"
-        end
-      end
-
     end
   end
 end

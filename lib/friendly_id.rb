@@ -5,6 +5,14 @@ require "friendly_id/sluggable_instance_methods"
 require "friendly_id/non_sluggable_class_methods"
 require "friendly_id/non_sluggable_instance_methods"
 
+begin
+  require 'ar-extensions'
+  require 'ar-extensions/adapters/mysql'
+  require 'ar-extensions/import/mysql'
+rescue LoadError
+  puts "Please install ar-extensions if you want to use friendly_id:make_slugs_faster or friendly_id:redo_slugs_faster tasks."
+end
+
 # FriendlyId is a comprehensive Ruby library for slugging and permalinks with
 # ActiveRecord.
 module FriendlyId
