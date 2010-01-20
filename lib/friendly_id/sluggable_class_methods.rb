@@ -4,35 +4,38 @@ module FriendlyId::SluggableClassMethods
 
   # Finds a single record using the friendly id, or the record's id.
   def find_one(id_or_name, options) #:nodoc:#
-
     scope = options.delete(:scope)
     scope = scope.to_param if scope && scope.respond_to?(:to_param)
 
     if id_or_name.is_a?(Integer) || id_or_name.kind_of?(ActiveRecord::Base)
       return super(id_or_name, options)
-    end
-
-    find_options = {:select => "#{self.table_name}.*"}
-    find_options[:joins] = :slugs unless options[:include] && [*options[:include]].flatten.include?(:slugs)
-
-    name, sequence = Slug.parse(id_or_name)
-
-    find_options[:conditions] = {
-      "#{Slug.table_name}.name"     => name,
-      "#{Slug.table_name}.scope"    => scope,
-      "#{Slug.table_name}.sequence" => sequence
-    }
-
-    result = with_scope(:find => find_options) { find_initial(options) }
-    if result
-      result.finder_slug_name = id_or_name
-    elsif id_or_name.to_i.to_s != id_or_name
-      raise ActiveRecord::RecordNotFound
     else
-      result = super id_or_name, options
-    end
+      if self.cache_column
+        find_options = { :conditions => { self.cache_column => id_or_name } }
+      else
+        find_options = {:select => "#{self.table_name}.*"}
+        find_options[:joins] = :slugs unless options[:include] && [*options[:include]].flatten.include?(:slugs)
 
-    result
+        name, sequence = Slug.parse(id_or_name)
+
+        find_options[:conditions] = {
+          "#{Slug.table_name}.name"     => name,
+          "#{Slug.table_name}.scope"    => scope,
+          "#{Slug.table_name}.sequence" => sequence
+        }
+      end
+
+      result = with_scope(:find => find_options) { find_initial(options) }
+      if result
+        result.finder_slug_name = id_or_name
+      elsif id_or_name.to_i.to_s != id_or_name
+        raise ActiveRecord::RecordNotFound
+      else
+        result = super id_or_name, options
+      end
+
+      result
+    end
 
   rescue ActiveRecord::RecordNotFound => e
 
