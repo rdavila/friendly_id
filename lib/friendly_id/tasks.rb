@@ -23,15 +23,28 @@ module FriendlyId
           break if records.size == 0
           slugs = []
           records.each do |r|
-            klass.update_all({:cached_slug => r.slug_text}, :id => r.id)
             slug = r.slugs.build :name => r.slug_text
+            slug.send :set_sequence
             r.instance_eval do
               if friendly_id_options[:scope]
                 scope = send(friendly_id_options[:scope])
                 slug.scope = scope.respond_to?(:to_param) ? scope.to_param : scope.to_s
               end
             end
-            slug.send :set_sequence
+            r.instance_eval do
+              slugs.reverse.each do |mem_slug|
+                if mem_slug.name == slug.name
+                  if friendly_id_options[:scope]
+                    slug.sequence = mem_slug.sequence + 1 if mem_slug.scope == slug.scope
+                    break
+                  else
+                    slug.sequence = mem_slug.sequence + 1
+                    break
+                  end
+                end
+              end
+            end
+            klass.update_all({:cached_slug => slug.to_friendly_id}, :id => r.id)
             slugs << slug
             yield(r) if block_given?
           end
